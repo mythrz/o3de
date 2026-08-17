@@ -418,7 +418,7 @@ void CLogFile::AboutSystem()
     CryLog("%s", szBuffer);
 #else
     QLocale locale;
-    CryLog("Current Language: %s (%s)", qPrintable(QLocale::languageToString(locale.language())), qPrintable(QLocale::countryToString(locale.country())));
+    CryLog("Current Language: %s (%s)", qPrintable(QLocale::languageToString(locale.language())), qPrintable(QLocale::territoryToString(locale.territory())));
 #endif
 
 
@@ -436,15 +436,7 @@ void CLogFile::AboutSystem()
     // TODO: Add more detail about the current Linux Distro
     CryLog("Linux");
 #elif AZ_TRAIT_OS_PLATFORM_APPLE
-    QString operatingSystemName;
-    if (QSysInfo::MacintoshVersion >= Q_MV_OSX(10, 12))
-    {
-        operatingSystemName = "macOS ";
-    }
-    else
-    {
-        operatingSystemName = "OS X ";
-    }
+    QString operatingSystemName ="macOS ";
 
     int majorVersion = 0;
     int minorVersion = 0;
@@ -453,7 +445,7 @@ void CLogFile::AboutSystem()
     Gestalt(gestaltSystemVersionMinor, &minorVersion);
     AZ_POP_DISABLE_WARNING
 
-    CryLog("%s - %d.%d", qPrintable(operatingSystemName), majorVersion, minorVersion);
+    CryLog("%s - %d.%d", qUtf8Printable(operatingSystemName), majorVersion, minorVersion);
 #else
     CryLog("Unknown Operating System");
 #endif
@@ -484,7 +476,7 @@ void CLogFile::AboutSystem()
 #else
     clock_gettime(CLOCK_MONOTONIC, &ts);
 #endif
-    CryLog("Local time is %s, system running for %ld minutes", qPrintable(QTime::currentTime().toString("hh:mm:ss")), ts.tv_sec / 60);
+    CryLog("Local time is %s, system running for %ld minutes", qUtf8Printable(QTime::currentTime().toString("hh:mm:ss")), ts.tv_sec / 60);
 #endif
 
     //////////////////////////////////////////////////////////////////////
@@ -513,7 +505,7 @@ void CLogFile::AboutSystem()
     auto screen = QGuiApplication::primaryScreen();
     if (screen)
     {
-        CryLog("Current display mode is %dx%dx%d, %s", screen->size().width(), screen->size().height(), screen->depth(), qPrintable(screen->name()));
+        CryLog("Current display mode is %dx%dx%d, %s", screen->size().width(), screen->size().height(), screen->depth(), qUtf8Printable(screen->name()));
     }
 #endif
 
@@ -667,7 +659,7 @@ void CLogFile::OnWriteToConsole(AZStd::string_view sText, bool bNewLine)
             }
 
             // remember selection and the top row
-            int len = m_hWndEditBox->document()->toPlainText().length();
+            int len = static_cast<int>(m_hWndEditBox->document()->toPlainText().length());
             int top = 0;
             int from = m_hWndEditBox->textCursor().selectionStart();
             int to = from + m_hWndEditBox->textCursor().selectionEnd();
