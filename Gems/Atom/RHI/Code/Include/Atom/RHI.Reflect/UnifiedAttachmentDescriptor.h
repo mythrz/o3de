@@ -30,17 +30,9 @@ namespace AZ::RHI
         /// Differentiates between an image, buffer and resolve attachment
         AttachmentType m_type = AttachmentType::Uninitialized;
 
-        union {
-            struct
-            {
-                BufferDescriptor m_buffer;
-                BufferViewDescriptor m_bufferView;
-            };
-            struct
-            {
-                ImageDescriptor m_image;
-                ImageViewDescriptor m_imageView;
-            };
-        };
+        BufferDescriptor m_buffer;
+        BufferViewDescriptor m_bufferView;
+        ImageDescriptor m_image;
+        ImageViewDescriptor m_imageView;
     };
 } // namespace AZ::RHI

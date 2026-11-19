@@ -31,6 +31,9 @@ ly_add_target(
 )
 
 set_target_properties(mcpp PROPERTIES SYSTEM TRUE)
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(mcpp PRIVATE -std=gnu17 -Wno-error=incompatible-pointer-types)
+endif()
 
 ly_install_files(
     FILES

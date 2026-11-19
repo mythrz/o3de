@@ -48,17 +48,6 @@ namespace AZ::Render
                 return defaultValue;
             }
 
-            template<>
-            RHI::Ptr<const RHI::ImageView> GetProperty(const AZ::Name& propertyName, const RHI::Ptr<const RHI::ImageView> defaultValue)
-            {
-                auto image = GetProperty<Data::Instance<RPI::Image>>(propertyName, nullptr);
-                if (image)
-                {
-                    return image->GetImageView();
-                }
-                return defaultValue;
-            }
-
             template<typename T>
             RHI::Ptr<T> GetFunctor()
             {
@@ -88,6 +77,18 @@ namespace AZ::Render
         private:
             AZ::RPI::Material* m_material;
         };
+
+        template<>
+        inline RHI::Ptr<const RHI::ImageView> MaterialConversionUtil::GetProperty<RHI::Ptr<const RHI::ImageView>>(
+            const AZ::Name& propertyName, const RHI::Ptr<const RHI::ImageView> defaultValue)
+        {
+            auto image = GetProperty<Data::Instance<RPI::Image>>(propertyName, nullptr);
+            if (image)
+            {
+                return image->GetImageView();
+            }
+            return defaultValue;
+        }
 
         void ConvertMaterial(RPI::Material* material, MaterialParameters& convertedMaterial)
         {

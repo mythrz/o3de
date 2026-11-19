@@ -119,8 +119,8 @@ namespace AZ
         };
 
         template<typename T>
-        AZStd::small_vector<RHI::Interval, DescriptorSet::ViewsFixedsize> DescriptorSet::GetValidDescriptorsIntervals(
-            const AZStd::span<T>& descriptorsInfo) const
+        auto DescriptorSet::GetValidDescriptorsIntervals(
+            const AZStd::span<T>& descriptorsInfo) const -> AZStd::small_vector<RHI::Interval, ViewsFixedsize>
         {
             AZStd::small_vector<RHI::Interval, DescriptorSet::ViewsFixedsize> intervals;
             // if Null descriptors are supported, then we just return one interval that covers the whole range.
