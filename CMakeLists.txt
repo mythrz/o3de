@@ -87,6 +87,7 @@ include(cmake/PAL.cmake)
 include(cmake/PALTools.cmake)
 include(cmake/RuntimeDependencies.cmake)
 include(cmake/Configurations.cmake) # Requires to be after PAL so we get platform variable definitions
+include(cmake/CxxModules.cmake)     # Requires to be after Configurations/PAL for compiler & generator detection
 include(cmake/Dependencies.cmake)
 include(cmake/Deployment.cmake)
 include(cmake/3rdParty.cmake)
