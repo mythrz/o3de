@@ -8,12 +8,16 @@
 
 #! ly_include_cmake_file_list: includes a cmake file list
 #
-# Includes a .cmake file that contains a variable "FILE" with the list of files
+# Includes a .cmake file that contains a variable "FILES" with the list of files
 # The function appends the list of files to the variable ALLFILES. Callers of this
 # function can include multiple cmake file list files and then use ALLFILES as the
 # source for libraries/binaries/etc. Files that need to be excluded from unity builds
 # due to possible ODR violations will need to be set in the variable 'SKIP_UNITY_BUILD_INCLUSION_FILES'
-# in the same .cmake file (regardless of whether unity builds are enabled or not)
+# in the same .cmake file (regardless of whether unity builds are enabled or not).
+#
+# Optional C++20 module interface units may be listed in 'CXX_MODULE_FILES' (with optional
+# 'CXX_MODULE_BASE_DIRS'), which are appended to ALL_CXX_MODULE_FILES / ALL_CXX_MODULE_BASE_DIRS
+# for attachment via `FILE_SET CXX_MODULES` in `ly_add_target`.
 #
 # The function takes care of appending the path relative to the cmake list file
 #
@@ -22,6 +26,10 @@
 function(ly_include_cmake_file_list file)
 
     set(UNITY_AUTO_EXCLUSIONS)
+    set(FILES)
+    set(SKIP_UNITY_BUILD_INCLUSION_FILES)
+    set(CXX_MODULE_FILES)
+    set(CXX_MODULE_BASE_DIRS)
 
     include(${file})
     get_filename_component(file_path "${file}" PATH)
@@ -42,12 +50,11 @@ function(ly_include_cmake_file_list file)
             message(SEND_ERROR "File ${absolute_path} referenced in ${file} not found")
         endif()
 
-        # Automatically exclude any extensions marked for the current platform
-        if (PAL_TRAIT_BUILD_UNITY_EXCLUDE_EXTENSIONS)
-            get_filename_component(file_extension ${f} LAST_EXT)
-            if (${file_extension} IN_LIST PAL_TRAIT_BUILD_UNITY_EXCLUDE_EXTENSIONS)
-                list(APPEND UNITY_AUTO_EXCLUSIONS ${f})
-            endif()
+        # Automatically exclude any extensions marked for the current platform or C++20 module units
+        get_filename_component(file_extension ${f} LAST_EXT)
+        if ((PAL_TRAIT_BUILD_UNITY_EXCLUDE_EXTENSIONS AND ${file_extension} IN_LIST PAL_TRAIT_BUILD_UNITY_EXCLUDE_EXTENSIONS)
+            OR (O3DE_CXX_MODULE_EXTENSIONS AND ${file_extension} IN_LIST O3DE_CXX_MODULE_EXTENSIONS))
+            list(APPEND UNITY_AUTO_EXCLUSIONS ${f})
         endif()
     endforeach()
 
@@ -74,6 +81,52 @@ function(ly_include_cmake_file_list file)
             list(APPEND FILES ${f})
         endif()
     endforeach()
+
+    # Process optional C++20 module interface units (CXX_MODULE_FILES / CXX_MODULE_BASE_DIRS)
+    if(CXX_MODULE_FILES)
+        if(file_path)
+            foreach(f ${CXX_MODULE_FILES})
+                cmake_path(IS_RELATIVE f is_relative)
+                if(is_relative)
+                    string(PREPEND f ${file_path}/)
+                endif()
+                list(APPEND CXX_MODULE_TRANSFORMED_FILES ${f})
+            endforeach()
+            set(CXX_MODULE_FILES ${CXX_MODULE_TRANSFORMED_FILES})
+        endif()
+
+        foreach(f ${CXX_MODULE_FILES})
+            get_filename_component(absolute_path ${f} ABSOLUTE)
+            if(NOT EXISTS ${absolute_path})
+                message(SEND_ERROR "File ${absolute_path} for CXX_MODULE_FILES referenced in ${file} not found")
+            endif()
+        endforeach()
+
+        if(CXX_MODULE_BASE_DIRS)
+            if(file_path)
+                foreach(d ${CXX_MODULE_BASE_DIRS})
+                    cmake_path(IS_RELATIVE d is_relative)
+                    if(is_relative)
+                        string(PREPEND d ${file_path}/)
+                    endif()
+                    list(APPEND CXX_MODULE_TRANSFORMED_BASE_DIRS ${d})
+                endforeach()
+                set(CXX_MODULE_BASE_DIRS ${CXX_MODULE_TRANSFORMED_BASE_DIRS})
+            endif()
+        else()
+            if(file_path)
+                set(CXX_MODULE_BASE_DIRS "${file_path}")
+            else()
+                set(CXX_MODULE_BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
+            endif()
+        endif()
+
+        list(APPEND UNITY_AUTO_EXCLUSIONS ${CXX_MODULE_FILES})
+        set(ALL_CXX_MODULE_FILES ${ALL_CXX_MODULE_FILES} ${CXX_MODULE_FILES} PARENT_SCOPE)
+        set(_merged_module_base_dirs ${ALL_CXX_MODULE_BASE_DIRS} ${CXX_MODULE_BASE_DIRS})
+        list(REMOVE_DUPLICATES _merged_module_base_dirs)
+        set(ALL_CXX_MODULE_BASE_DIRS ${_merged_module_base_dirs} PARENT_SCOPE)
+    endif()
 
     # Mark files tagged for unity build group exclusions for unity builds
     if (LY_UNITY_BUILD)
