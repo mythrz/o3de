@@ -75,6 +75,8 @@ define_property(TARGET PROPERTY RUNTIME_DEPENDENCIES_DEPENDS
 # \arg:AUTOUIC enables Qt uic in the target
 # \arg:AUTORCC enables Qt rcc in the target
 # \arg:NO_UNITY Prevent the target from employing unity builds even when unity builds (LY_UNITY_BUILD) are enabled
+# \arg:SCAN_FOR_MODULES Opt this target into C++20 module dependency scanning (CXX_SCAN_FOR_MODULES ON; implies NO_UNITY)
+# \arg:CXX_STANDARD (optional) C++ language standard for this target (e.g. 20, 23, 26), applied via target_compile_features
 # \arg:FILES_CMAKE list of *_files.cmake files that contain files for this target
 # \arg:GENERATED_FILES list of files to add to this target that are generated out of some other task
 # \arg:INCLUDE_DIRECTORIES list of directories to use as include paths
@@ -90,8 +92,8 @@ define_property(TARGET PROPERTY RUNTIME_DEPENDENCIES_DEPENDS
 # \arg:AUTOGEN_RULES a set of AutoGeneration rules to be passed to the AzAutoGen expansion system
 function(ly_add_target)
 
-    set(options STATIC SHARED MODULE GEM_STATIC GEM_SHARED GEM_MODULE OBJECT HEADERONLY EXECUTABLE APPLICATION IMPORTED AUTOMOC AUTOUIC AUTORCC NO_UNITY EXPORT_ALL_SYMBOLS)
-    set(oneValueArgs NAME NAMESPACE OUTPUT_SUBDIRECTORY OUTPUT_NAME)
+    set(options STATIC SHARED MODULE GEM_STATIC GEM_SHARED GEM_MODULE OBJECT HEADERONLY EXECUTABLE APPLICATION IMPORTED AUTOMOC AUTOUIC AUTORCC NO_UNITY EXPORT_ALL_SYMBOLS SCAN_FOR_MODULES)
+    set(oneValueArgs NAME NAMESPACE OUTPUT_SUBDIRECTORY OUTPUT_NAME CXX_STANDARD)
     set(multiValueArgs FILES_CMAKE GENERATED_FILES INCLUDE_DIRECTORIES COMPILE_DEFINITIONS BUILD_DEPENDENCIES RUNTIME_DEPENDENCIES PLATFORM_INCLUDE_FILES TARGET_PROPERTIES AUTOGEN_RULES)
 
     cmake_parse_arguments(ly_add_target "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -131,6 +133,8 @@ function(ly_add_target)
     # Targets can be declared recursively while resolving another targets dependencies.
     # Do not inherit the consumers accumulated source list.
     set(ALLFILES "")
+    set(ALL_CXX_MODULE_FILES "")
+    set(ALL_CXX_MODULE_BASE_DIRS "")
     foreach(file_cmake ${ly_add_target_FILES_CMAKE})
         ly_include_cmake_file_list(${file_cmake})
     endforeach()
@@ -222,6 +226,52 @@ function(ly_add_target)
         )
     endif()
 
+    if(ALL_CXX_MODULE_FILES)
+        if(NOT PAL_TRAIT_BUILD_CXX_MODULES_SUPPORTED)
+            message(FATAL_ERROR
+                "Target '${ly_add_target_NAME}' defines CXX_MODULE_FILES, but C++20 modules are not supported by the current toolchain/generator "
+                "(CMake ${CMAKE_VERSION}, generator '${CMAKE_GENERATOR}', compiler '${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}'). "
+                "Requires CMake >= 3.28 with Ninja, Ninja Multi-Config, or Visual Studio 2022+ and GCC 14+, Clang 16+, or MSVC 19.34+."
+            )
+        endif()
+        set(_cxx_module_visibility PUBLIC)
+        if(ly_add_target_INTERFACE)
+            set(_cxx_module_visibility INTERFACE)
+        endif()
+        target_sources(${ly_add_target_NAME}
+            ${_cxx_module_visibility}
+                FILE_SET CXX_MODULES
+                BASE_DIRS ${ALL_CXX_MODULE_BASE_DIRS}
+                FILES ${ALL_CXX_MODULE_FILES}
+        )
+        unset(_cxx_module_visibility)
+        set(ly_add_target_SCAN_FOR_MODULES TRUE)
+    endif()
+
+    if(ly_add_target_SCAN_FOR_MODULES)
+        if(NOT PAL_TRAIT_BUILD_CXX_MODULES_SUPPORTED)
+            message(FATAL_ERROR
+                "Target '${ly_add_target_NAME}' requested SCAN_FOR_MODULES, but C++20 modules are not supported by the current toolchain/generator "
+                "(CMake ${CMAKE_VERSION}, generator '${CMAKE_GENERATOR}', compiler '${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}')."
+            )
+        endif()
+        if(NOT ly_add_target_INTERFACE)
+            set_target_properties(${ly_add_target_NAME} PROPERTIES
+                CXX_SCAN_FOR_MODULES ON
+            )
+        endif()
+        set(ly_add_target_NO_UNITY TRUE)
+    endif()
+
+    if(ly_add_target_CXX_STANDARD)
+        set(_cxx_std_visibility PUBLIC)
+        if(ly_add_target_INTERFACE)
+            set(_cxx_std_visibility INTERFACE)
+        endif()
+        target_compile_features(${ly_add_target_NAME} ${_cxx_std_visibility} cxx_std_${ly_add_target_CXX_STANDARD})
+        unset(_cxx_std_visibility)
+    endif()
+
     if(${ly_add_target_EXECUTABLE} OR ${ly_add_target_APPLICATION})
         add_executable(${interface_name} ALIAS ${ly_add_target_NAME})
     else()
@@ -311,7 +361,7 @@ function(ly_add_target)
     endif()
 
     # IDE organization
-    ly_source_groups_from_folders("${ALLFILES}")
+    ly_source_groups_from_folders("${ALLFILES};${ALL_CXX_MODULE_FILES}")
     source_group("Generated Files" REGULAR_EXPRESSION "(${CMAKE_BINARY_DIR})") # Any file coming from the output folder
     ly_get_vs_folder_directory(${CMAKE_CURRENT_SOURCE_DIR} ide_path)
     set_property(TARGET ${project_NAME} PROPERTY FOLDER ${ide_path})
