@@ -10,6 +10,7 @@ ly_install_directory(
     DIRECTORIES
         AssetGem
         AddTestsToProject
+        CppModuleGem
         CppToolGem
         DefaultGem
         GameplayGem
