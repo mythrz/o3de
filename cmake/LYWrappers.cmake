@@ -264,7 +264,7 @@ function(ly_add_target)
     endif()
 
     if(ly_add_target_CXX_STANDARD)
-        set(_cxx_std_visibility PUBLIC)
+        set(_cxx_std_visibility PRIVATE)
         if(ly_add_target_INTERFACE)
             set(_cxx_std_visibility INTERFACE)
         endif()

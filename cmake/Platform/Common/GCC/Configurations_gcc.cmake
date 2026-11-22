@@ -55,7 +55,7 @@ ly_append_configurations_options(
 
     COMPILATION_C
         -fno-exceptions
-        -fvisibility=hidden
+        -fvisibility=default
         -Wall
         -Werror
 
@@ -66,8 +66,7 @@ ly_append_configurations_options(
         ${LY_GCC_GPROF_FLAGS}
     COMPILATION_CXX
         -fno-exceptions
-        -fvisibility=hidden
-        -fvisibility-inlines-hidden
+        -fvisibility=default
         -Wall
         -Werror
 

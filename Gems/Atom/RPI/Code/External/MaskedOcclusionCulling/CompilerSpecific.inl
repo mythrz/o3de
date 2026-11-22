@@ -76,14 +76,26 @@
 		free(ptr);
 	}
 
-#if !defined(__clang__) || (__clang_major__ < 19)
+#if (defined(__clang__) && (__clang_major__ < 19)) || (!defined(__clang__) && defined(__GNUC__) && (__GNUC__ < 11))
 	FORCE_INLINE void __cpuidex(int* cpuinfo, int function, int subfunction)
 	{
 		__cpuid_count(function, subfunction, cpuinfo[0], cpuinfo[1], cpuinfo[2], cpuinfo[3]);
 	}
 #endif
 
-#if !defined(_xgetbv)
+#if !defined(__clang__) && defined(__GNUC__)
+	FORCE_INLINE unsigned long long moc_xgetbv(unsigned int index)
+	{
+		unsigned int eax, edx;
+		__asm__ __volatile__(
+			"xgetbv;"
+			: "=a" (eax), "=d"(edx)
+			: "c" (index)
+		);
+		return ((unsigned long long)edx << 32) | eax;
+	}
+	#define _xgetbv moc_xgetbv
+#elif !defined(_xgetbv)
 	FORCE_INLINE unsigned long long _xgetbv(unsigned int index)
 	{
 		unsigned int eax, edx;
